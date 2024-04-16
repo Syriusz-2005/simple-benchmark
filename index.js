@@ -11,7 +11,7 @@ function fib(n) {
 
 function randomArr() {
   const arr = [];
-  for (let i = 0; i < 10_000; i++) {
+  for (let i = 0; i < 1_000; i++) {
     arr.push(Math.random());
   }
   return arr;
@@ -21,12 +21,12 @@ const wait = (t) => new Promise((r) => setTimeout(r, t));
 
 app.use(express.json());
 app.get("/fib", (req, res) => {
-  res.json({ result: fib(200) });
+  res.json({ result: fib(20) });
 });
 app.get("/async", async (req, res) => {
-  fib(50);
+  fib(15);
   await wait(300);
-  fib(50);
+  fib(15);
   res.send(JSON.stringify(randomArr()));
 });
 
