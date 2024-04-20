@@ -1,5 +1,7 @@
 import express from "express";
 import fs from "fs/promises";
+import {fileParser} from "./fileParser.js";
+import sharp from "sharp";
 
 const app = express();
 
@@ -36,7 +38,6 @@ let lastWatermark;
 async function handleGroupImageUpload(req, res) {
   const merchantEmail = "slomkam7@gmail.com";
   const file = (req.files)?.at(0);
-
   const fileOriginalName = file.originalname.filename;
 
   const resizeTo = Math.min(Math.max(Number(req.body.resizeTo), 400), 1600);
@@ -50,12 +51,12 @@ async function handleGroupImageUpload(req, res) {
     gallery: String(req.body.gallery),
     group: String(req.body.group),
     imageName: String(fileOriginalName),
-    inDevelopment: isDev,
+    inDevelopment: true,
   };
 
+  console.time("Resize and upload");
   if (uploadForFullSize) {
     await sharpInstance.jpeg({quality: 100}).toBuffer();
-    await wait(150); // Simulating uploading full size file
   }
 
   const {data: resizedBuffer, info} = await sharpInstance
@@ -97,6 +98,7 @@ async function handleGroupImageUpload(req, res) {
         left: 0,
       },
     ]);
+
   }
 
   const watermarkedSharpInstance = sharp(await resizedSharpInstance.toBuffer());
@@ -104,17 +106,15 @@ async function handleGroupImageUpload(req, res) {
   watermarkedSharpInstance.jpeg({progressive: true, quality: 100});
 
   await watermarkedSharpInstance.toBuffer();
-  await wait(50); // simulating uploading resized image
 
   watermarkedSharpInstance.resize(400, 400, {fit: "inside"});
 
   await watermarkedSharpInstance.toBuffer();
-  await wait(30) // simulating uploading preview buffer
-
+  console.timeEnd("Resize and upload");
   res.send({status: 200, message: "OK"});
 }
 
-app.get("/upload", async (req, res) => {
+app.post("/upload", async (req, res) => {
   const [first, second] = fileParser();
   first(req, res, () => {
     second(req, res, () => {
