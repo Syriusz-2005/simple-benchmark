@@ -38,68 +38,52 @@ let lastWatermark;
 async function handleGroupImageUpload(req, res) {
   const merchantEmail = "slomkam7@gmail.com";
   const file = (req.files)?.at(0);
-  const fileOriginalName = file.originalname.filename;
-
   const resizeTo = Math.min(Math.max(Number(req.body.resizeTo), 400), 1600);
-  const addWatermark = req.body.watermarkPath !== undefined;
-  const uploadForFullSize = String(req.body.uploadForFullSize) === "true";
-
   const sharpInstance = sharp(file.buffer);
 
-  const defaultUploadOptions = {
-    email: merchantEmail,
-    gallery: String(req.body.gallery),
-    group: String(req.body.group),
-    imageName: String(fileOriginalName),
-    inDevelopment: true,
-  };
-
   console.time("Resize and upload");
-  if (uploadForFullSize) {
-    await sharpInstance.jpeg({quality: 100}).toBuffer();
-  }
+  console.time("Full size");
+  await sharpInstance.jpeg({quality: 90}).toBuffer();
+  console.timeEnd("Full size");
 
   const {data: resizedBuffer, info} = await sharpInstance
     .resize(resizeTo, resizeTo, {
       fit: "inside",
     })
     .toBuffer({resolveWithObject: true});
-
+    
   const resizedSharpInstance = sharp(resizedBuffer);
 
-  if (addWatermark) {
-    const watermarkResourceName = String(req.body.watermarkResourceName);
-    let watermarkBuffer;
-    if (
-      !lastWatermark ||
-      lastWatermark.email !== merchantEmail ||
-      lastWatermark.resourceName !== watermarkResourceName
-    ) {
-      watermarkBuffer = await fs.readFile("./watermark.png");
+  const watermarkResourceName = String(req.body.watermarkResourceName);
+  let watermarkBuffer;
+  if (
+    !lastWatermark ||
+    lastWatermark.email !== merchantEmail ||
+    lastWatermark.resourceName !== watermarkResourceName
+  ) {
+    watermarkBuffer = await fs.readFile("./watermark.png");
 
-      lastWatermark = {
-        email: merchantEmail,
-        resourceName: watermarkResourceName,
-        buffer: watermarkBuffer,
-      };
-    } else {
-      watermarkBuffer = lastWatermark.buffer;
-    }
-
-    resizedSharpInstance.composite([
-      {
-        input: await sharp(watermarkBuffer)
-          .resize(info.width - 5, info.height - 5, {
-            fit: "cover",
-            withoutEnlargement: true,
-          })
-          .toBuffer(),
-        top: 0,
-        left: 0,
-      },
-    ]);
-
+    lastWatermark = {
+      email: merchantEmail,
+      resourceName: watermarkResourceName,
+      buffer: watermarkBuffer,
+    };
+  } else {
+    watermarkBuffer = lastWatermark.buffer;
   }
+
+  resizedSharpInstance.composite([
+    {
+      input: await sharp(watermarkBuffer)
+        .resize(info.width - 5, info.height - 5, {
+          fit: "cover",
+          withoutEnlargement: true,
+        })
+        .toBuffer(),
+      top: 0,
+      left: 0,
+    },
+  ]);
 
   const watermarkedSharpInstance = sharp(await resizedSharpInstance.toBuffer());
 
